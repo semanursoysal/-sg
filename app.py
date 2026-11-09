@@ -3,8 +3,16 @@ import pandas as pd
 import numpy as np
 from datetime import date
 
-st.set_page_config(page_title="E Blok Varlik ve ISG Risk Analiz Sistemi", layout="wide")
+# 1. Sayfa Yapılandırması (En başta olmalıdır)
+st.set_page_config(page_title="E Blok Varlık ve İSG Risk Analiz Sistemi", layout="wide")
 
+# Session State Başlatma (Güvenli Alan)
+if "analiz_veritabani" not in st.session_state:
+    st.session_state["analiz_veritabani"] = []
+
+# ==========================================
+# 2. VERİ TABANI TANIMLARI (23 LAB & VARLIKLAR)
+# ==========================================
 LAB_LISTESI = [
     "1. Bilgisayar Laboratuvari",
     "2. Kimya Muhendisligi Laboratuvari",
@@ -63,6 +71,9 @@ LAB_EKIPMANLARI = {
     ]
 }
 
+# ==========================================
+# 3. HESAPLAMA MOTORU
+# ==========================================
 def calculate_fine_kinney_frequency(t_hours):
     if t_hours >= 30: return 10.0
     elif 10 <= t_hours < 30: return 6.0
@@ -106,20 +117,20 @@ def calculate_risk_scores(puan_artisi, d_skoru, t_hours):
 
     return O_matris, S_matris, O_kinney, F_kinney, m_score, k_score, status, flag, priority
 
-if "analiz_veritabani" not in st.session_state:
-    st.session_state.analiz_veritabani = []
-
+# ==========================================
+# 4. STREAMLIT ARAYÜZÜ (MAIN)
+# ==========================================
 def main():
-    st.title("E Blok Laboratuvar Varlik ve ISG Risk Analiz Sistemi")
-    st.caption("Literatur Tabanli Cihaz ve Kimyasal ISG Parametreleri Ile Hibrit Karar Destek Prototipi")
+    st.title("🏢 E Blok Laboratuvar Varlik ve ISG Risk Analiz Sistemi")
+    st.caption("Literatur Tabanli Cihaz ve Kimyasal ISG Parametreleri Ile Karar Destek Prototipi")
     st.markdown("---")
 
-    st.sidebar.header("1. Konum ve Inceleme Turu")
+    st.sidebar.header("📍 1. Konum ve Inceleme Turu")
     secilen_lab = st.sidebar.selectbox("Laboratuvar Secin (23 Lab):", LAB_LISTESI)
     inceleme_turu = st.sidebar.radio("Incelenecek Varlik Turu:", ["Cihaz / Ekipman Incelemesi", "Kimyasal Madde Incelemesi"])
 
     st.sidebar.markdown("---")
-    st.sidebar.header("2. Parametre Girisi")
+    st.sidebar.header("⚙️ 2. Parametre Girisi")
 
     puan_artisi = 0.0
     d_skoru = 40
@@ -164,9 +175,9 @@ def main():
         elif calisma_basinci > 10 or calisma_sicakligi > 100: d_skoru = 70
         else: d_skoru = 40
 
-        if st.sidebar.button("Cihaz Analizini Sistem Kayitlarina Ekle"):
+        if st.sidebar.button("💾 Cihaz Analizini Sistem Kayitlarina Ekle"):
             O_m, S_m, O_k, F_k, m_sc, k_sc, stat, flg, prio = calculate_risk_scores(puan_artisi, d_skoru, t_hours)
-            st.session_state.analiz_veritabani.append({
+            st.session_state["analiz_veritabani"].append({
                 "Mekan": secilen_lab,
                 "Tur": "Cihaz / Ekipman",
                 "Varlik Adi": secilen_cihaz,
@@ -182,7 +193,7 @@ def main():
                 "Capraz Dogrulama Uyarisi": stat,
                 "Nihai Risk Onceligi": prio
             })
-            st.sidebar.success(f"{secilen_cihaz} analizi basariyla eklendi!")
+            st.sidebar.success(f"{secilen_cihaz} analizi eklendi!")
 
     else:
         secilen_kimyasal = st.sidebar.selectbox("Incelenecek Kimyasal Maddeyi Secin:", LAB_EKIPMANLARI["Kimyasallar"])
@@ -202,5 +213,106 @@ def main():
         st.sidebar.subheader("3. Havalandirma ve Operator Maruziyeti")
         ceker_ocak = st.sidebar.selectbox("Ceker Ocak Emis Hizi:", ["Standart", "Dusuk / Yetersiz", "Ceker Ocak Yok"])
         t_hours = st.sidebar.slider("Haftalik Maruziyet Suresi (Saat/Hafta):", 0.1, 40.0, 15.0, 0.5)
-        
+        kkd_uygunluk = st.sidebar.selectbox("KKD Kullanimi:", ["Tam", "Eksik / Yok"])
+        deneyim = st.sidebar.selectbox("Arastirmaci Deneyimi:", ["Uzman", "Ogrenci / Acemi"])
 
+        if sds_durumu == "Yok": puan_artisi += 0.5
+        if depolama_dolabi == "Acik Rafta": puan_artisi += 1.0
+        if sekonder_kap == "Yok": puan_artisi += 0.5
+        if uyumsuzluk_depo == "Yan Yana": puan_artisi += 1.5
+        if ceker_ocak == "Dusuk / Yetersiz": puan_artisi += 1.0
+        elif ceker_ocak == "Ceker Ocak Yok": puan_artisi += 2.0
+        if kkd_uygunluk == "Eksik / Yok": puan_artisi += 1.0
+        if deneyim == "Ogrenci / Acemi": puan_artisi += 0.5
+
+        if "HF" in secilen_kimyasal or idlh_ppm < 50: d_skoru = 100
+        elif "H314" in h_kodlari or parlama_noktasi < 0 or stel_ppm < 100: d_skoru = 70
+        else: d_skoru = 40
+
+        if st.sidebar.button("💾 Kimyasal Analizini Sistem Kayitlarina Ekle"):
+            O_m, S_m, O_k, F_k, m_sc, k_sc, stat, flg, prio = calculate_risk_scores(puan_artisi, d_skoru, t_hours)
+            st.session_state["analiz_veritabani"].append({
+                "Mekan": secilen_lab,
+                "Tur": "Kimyasal Madde",
+                "Varlik Adi": secilen_kimyasal,
+                "Parlama Noktasi": f"{parlama_noktasi}C",
+                "H-Kodlari": h_kodlari,
+                "STEL / IDLH (ppm)": f"{stel_ppm} / {idlh_ppm}",
+                "Sekonder Kap": sekonder_kap,
+                "Ceker Ocak": ceker_ocak,
+                "Sure (sa/hf)": t_hours,
+                "5x5 Matris Skoru": m_sc,
+                "Fine-Kinney Skoru": round(k_sc, 1),
+                "Capraz Dogrulama Uyarisi": stat,
+                "Nihai Risk Onceligi": prio
+            })
+            st.sidebar.success(f"{secilen_kimyasal} analizi eklendi!")
+
+    # TABLAR
+    tab1, tab2 = st.tabs(["📊 E Blok Genel Varlik ve ISG Risk Tablosu", "🔍 Anlik Secilen Varlik Analiz Raporu"])
+
+    with tab1:
+        st.subheader("E Blok Tum Laboratuvarlar ISG Risk ve Varlik Envanteri")
+        
+        if len(st.session_state["analiz_veritabani"]) == 0:
+            st.info("Henuz kaydedilmis bir analiz yok. Sol taraftaki menuden parametreleri secip 'Sistem Kayitlarina Ekle' butonuna basin.")
+        else:
+            df_analiz = pd.DataFrame(st.session_state["analiz_veritabani"])
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Toplam Analiz Edilen Varlik", len(df_analiz))
+            c2.metric("Acil Eylem (Oncelik 1) Sayisi", len(df_analiz[df_analiz["Nihai Risk Onceligi"].str.contains("Oncelik 1")]))
+            c3.metric("Yontemsel Sapma / Kor Nokta Uyarisi", len(df_analiz[df_analiz["Capraz Dogrulama Uyarisi"].str.contains("UYARI")]))
+
+            st.dataframe(df_analiz, use_container_width=True)
+
+            csv_data = df_analiz.to_csv(index=False).encode('utf-8-sig')
+            st.download_button("📥 TUBITAK Proje Raporu Icin Tum Varlik Risk Tablosunu (CSV) Indir", data=csv_data, file_name="E_Blok_ISG_Risk_Analizi.csv", mime="text/csv")
+            
+            if st.button("🗑️ Tum Kayitlari Temizle"):
+                st.session_state["analiz_veritabani"] = []
+                st.rerun()
+
+    with tab2:
+        st.subheader(f"Konum: {secilen_lab}")
+        O_m, S_m, O_k, F_k, m_sc, k_sc, stat, flg, prio = calculate_risk_scores(puan_artisi, d_skoru, t_hours)
+
+        if inceleme_turu == "Cihaz / Ekipman Incelemesi":
+            st.write(f"**Incelenen Cihaz:** `{secilen_cihaz}`")
+            st.write(f"**Proses Parametreleri:** Sicaklik: `{calisma_sicakligi} C` | Basinc: `{calisma_basinci} Bar` | Doner Aksam: `{doner_aksam}`")
+            st.write(f"**Bakim Takibi:** Son Bakim: `{son_bakim_tarihi}` | Gelecek Kontrol: `{sonraki_bakim_tarihi}` | Muayene: `{bakim_durumu}`")
+        else:
+            st.write(f"**Incelenen Kimyasal:** `{secilen_kimyasal}`")
+            st.write(f"**Tehlike Kodlari:** `{h_kodlari}` | Parlama Noktasi: `{parlama_noktasi} C` | STEL: `{stel_ppm} ppm` | IDLH: `{idlh_ppm} ppm`")
+            st.write(f"**Depolama Sartlari:** Sekonder Kap: `{sekonder_kap}` | Emniyet Dolabi: `{depolama_dolabi}` | Uyumsuzluk: `{uyumsuzluk_depo}`")
+
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("5x5 Matris Risk Skoru (R = O x S)", f"{m_sc} / 25")
+        col2.metric("Fine-Kinney Risk Skoru (R = O x F x D)", f"{k_sc:.1f}")
+        col3.metric("Nihai Karar Destek Seviyesi", prio)
+
+        st.markdown("---")
+        st.subheader("Yontemsel Capraz Dogrulama Katmani")
+        if flg > 0:
+            st.error(f"SISTEM TESPITI: {stat}")
+        else:
+            st.success(f"SISTEM TESPITI: {stat}")
+
+        st.subheader("6331 SK Uyarinca Otomatik Aksiyon Plani")
+        
+        if inceleme_turu == "Cihaz / Ekipman Incelemesi":
+            if bakim_durumu != "Guncel ve Onayli":
+                st.warning("1. Bakim/Kalibrasyon Adimi (ACIL): Cihazin periyodik bakimi veya kalibrasyon tarihi gecmis. Muayene tamamlanana kadar cihaz kullanima kapatilmalidir.")
+            if sabitleme_durumu != "Tam Sabitlenmis":
+                st.warning("2. Muhendislik Onlemi: Ekipman/Tup cift noktadan kelepce veya zincirle sabitlenmelidir.")
+            if emniyet_valfi == "Yok / Tikali":
+                st.error("3. Basinc Guvenligi: Yuksek basinc hattinda asiri basinc koruma valfi/burst disk tikali veya eksik.")
+        else:
+            if ceker_ocak != "Standart":
+                st.warning("1. Muhendislik Onlemi: Ucutu/Toksik cozucu calismalari mutlak suretle aktif ceker ocak altinda yurutulmelidir.")
+            if uyumsuzluk_depo == "Yan Yana":
+                st.error("2. Kimyasal Depolama: Uyumsuz kimyasallar (asitler ve organik cozuculer) derhal ayristirilmali ve havalandirmali emniyet dolaplarina aktarilmalidir.")
+
+if __name__ == "__main__":
+    main()
