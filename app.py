@@ -202,4 +202,5 @@ def main():
         st.sidebar.subheader("3. Havalandirma ve Operator Maruziyeti")
         ceker_ocak = st.sidebar.selectbox("Ceker Ocak Emis Hizi:", ["Standart", "Dusuk / Yetersiz", "Ceker Ocak Yok"])
         t_hours = st.sidebar.slider("Haftalik Maruziyet Suresi (Saat/Hafta):", 0.1, 40.0, 15.0, 0.5)
+        
 
